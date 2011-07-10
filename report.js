@@ -1,6 +1,6 @@
 
 
-module.exports = Report
+module.exports = Reporter
 
 var stati = 
     { started: 'started'
@@ -10,7 +10,7 @@ var stati =
   , order = [stati.success, stati.failure, stati.error]
   , assert = require('assert')
 
-Report.status = stati
+Reporter.status = stati
 
 function update(old, newer){
   var o = order.indexOf(old)
@@ -29,58 +29,84 @@ function min (array,func){
   return m
 }
 
-function getStatus (array){
-  return min(array,function (e){
-    if(e && e.name && e.name === "AssertionError")
-      return stati.failure
-    return stati.error
-  })
+function getStatus (test){
+  var m = min(test.failures,function (e){
+        if(e && e.name && e.name === "AssertionError")
+          return stati.failure
+        return stati.error
+      })
+    , n = test.tests ? min (test.tests, function (e) {
+        return getStatus(e)
+      }) : 'success'
+  return n < m ? n : m
 }
 
-Report.prototype = {
-  test: function (name,error){
-
-    if(!this.tests[name]) {
-      var test = 
-        { name: name
-        , failures: arguments.length > 1 ? [error] : []
-        , get status (){
-            return getStatus(this.failures)
-          }
-        }
-
-      this.report.tests.push(this.tests[name] = test)
-    } else if (arguments.length > 1)
-      this.tests[name].failures.push(error)
-  
-    return this
+function test(name,failures) {
+  return  { 
+    name: name
+  , failures: failures || []
+  , get status () { return getStatus(this) }
   }
-, error: function (err){
+}
+
+function find (ary, n) {
+  for (var i in ary) {
+    if (ary[i].name === n)
+      return ary[i]
+  }
+}
+function get(report,path) {
+  if ('string' === typeof path) 
+    path = [path]
+  if (!path.length)
+    return report
+  var f = find(report.tests, path[0])
+  if (!f) {
+    f = test(path[0],[])
+    if (!report.tests) 
+      report.tests = []
+    report.tests.push(f)
+  }
+  return get(f,path.slice(1))
+}
+
+Reporter.prototype = {
+  subreport: function (name) {
+    var subreporter = new Reporter (name)
+    this.test(subreporter.report)
+    return subreporter
+  }, 
+  test: function (name,error){
+    var t
+    if (Array.isArray(name) || 'string' === typeof name) {
+      var t = get(this.report,name)
+      if (arguments.length > 1)
+        t.failures.push(error)
+    }
+    else if ('object' === typeof name)
+      this.report.tests.push(name)
+    return this
+  },
+  error: function (err){
     this.report.failures.push (err)
     
     return this
-  }
-, meta: function (key,value){
+  },
+  meta: function (key,value){
     this.report.meta[key] = value
     
     return this
   }
 }
 
-function Report (filename){
-  if(!(this instanceof Report)) return new Report(filename)
-  this.report = 
-    { name: filename
-    , filename: filename
-    , failures: []
-    , os: process.platform
-    , version: process.version
-    , meta: {}
-    , get status (){
-        var m = getStatus(this.failures),
-          n = min(this.tests,function (e){return e.status})
-          return n < m ? n : m
-      }
-    , tests: [] }
-  this.tests = {}
+function Reporter (filename){
+  if(!(this instanceof Reporter)) return new Reporter(filename)
+
+  var r = this.report = test (filename)
+  
+  r.filename = filename
+  r.os = process.platform
+  r.version = process.version
+  r.meta = {}
+  r.tests = [] 
 }

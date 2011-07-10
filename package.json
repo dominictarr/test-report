@@ -1,6 +1,6 @@
 { "name": "test-report"
-, "version": "0.0.0"
-, "description": ""
+, "version": "1.0.0"
+, "description": "generate test reports"
 , "homepage": "http://github.com/dominictarr/test-report"
 , "main": "./report.js"
 , "repository": 
