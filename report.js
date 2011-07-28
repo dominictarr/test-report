@@ -45,7 +45,7 @@ function failureCount (test){
   return test.failures.length + 
     ( test.tests ? test.tests.map(failureCount).reduce(function (x, y) {
           return x + y
-      }) : 0 )
+      }, 0 /*initial*/) : 0 )
 }
 
 
