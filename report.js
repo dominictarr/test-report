@@ -41,11 +41,20 @@ function getStatus (test){
   return n < m ? n : m
 }
 
+function failureCount (test){
+  return test.failures.length + 
+    ( test.tests ? test.tests.map(failureCount).reduce(function (x, y) {
+          return x + y
+      }) : 0 )
+}
+
+
 function test(name,failures) {
   return  { 
     name: name
   , failures: failures || []
   , get status () { return getStatus(this) }
+  , get failureCount () { return failureCount(this) }
   }
 }
 
